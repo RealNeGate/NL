@@ -1,4 +1,4 @@
-# NSTL
+# NL (NeGate's Libraries)
 
 Just a series of random "libraries" which I've produced for C11+ (some might support earlier versions).
 

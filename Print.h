@@ -39,6 +39,19 @@
 #include <stdio.h>
 #endif // NL_NO_STDIO
 
+#ifndef NL_MY_FPRINTF
+#define NL_MY_FPRINTF(stream, fmt, ...) fprintf(stream, fmt, __VA_ARGS__) 
+#endif // NL_MY_FPRINTF
+
+#ifndef NL_MY_SNPRINTF
+#define NL_MY_SNPRINTF(buffer, len, fmt, ...) snprintf(buffer, len, fmt, __VA_ARGS__) 
+#endif // NL_MY_SNPRINTF
+
+#include <stdint.h>
+#include <inttypes.h>
+#include <stdarg.h>
+#include <assert.h>
+
 #define nl_concat(arg1, arg2)   nl_concat1(arg1, arg2)
 #define nl_concat1(arg1, arg2)  nl_concat2(arg1, arg2)
 #define nl_concat2(arg1, arg2)  arg1##arg2
@@ -109,7 +122,19 @@
 #define nl_print_f_iter_31(x, ...)  nl_print_f_iter_n(30,x) nl_print_f_iter_30(__VA_ARGS__)
 #define nl_print_f_iter_32(x, ...)  nl_print_f_iter_n(31,x) nl_print_f_iter_31(__VA_ARGS__)
 
-#define nl_print_f_iter_n(idx, x) '%', _Generic((x), char: 'c', char*: 's', double: 'f', short: 'd', int: 'd', default: 'p' ), 
+#define nl_print_f_iter_n(idx, x) \
+    _Generic((x), \
+        char*:    NL__cstring, \
+        char:     NL__char, \
+        uint32_t: NL__u32, \
+        uint64_t: NL__u64, \
+        int32_t:  NL__i32, \
+        int64_t:  NL__i64, \
+        float:    NL__float, \
+        double:   NL__float, \
+        default:  NL__ptr \
+    ),
+
 #define nl_print_v_iter_n(idx, x) , x
 
 #define nl_print_narg(...) nl_print_narg_(__VA_ARGS__, nl_print_rseq_n())
@@ -119,21 +144,84 @@
 #define nl_print_rseq_n() 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
 #define nl_fprint(stream, ...) \
-    fprintf(stream, \
-        nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
+    nl__internal_print(stream, \
+        (char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
         nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
     );
 
 #define nl_print(...) \
-    printf( \
-        &(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+    nl__internal_print(stdout, \
+        (char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
         nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
     );
 
-#define nl_sprint(buf, ...) \
-    sprintf(buf, \
-        &(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+#define nl_sprint(buf, len, ...) \
+    nl__internal_sprint(buf, len, \
+        (char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
         nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
     );
+
+typedef enum {
+    NL__char,
+    NL__u32,
+    NL__u64,
+    NL__i32,
+    NL__i64,
+    NL__ptr,
+    NL__float,
+    NL__cstring
+} NL__PrintType;
+
+inline static void nl__internal_print(FILE* out, const char* restrict fmt, ...) {
+    va_list va;
+    va_start(va, fmt);
+
+    // TODO: maybe do something fancy like a custom print eventually...
+    for (; *fmt; fmt++) switch ((NL__PrintType) *fmt) {
+    case NL__char: NL_MY_FPRINTF(out, "%c",(char) va_arg(va, int)); break;
+    case NL__u32: NL_MY_FPRINTF(out, "%" PRIu32,  va_arg(va, uint32_t)); break;
+    case NL__u64: NL_MY_FPRINTF(out, "%" PRIu64,  va_arg(va, uint64_t)); break;
+    case NL__i32: NL_MY_FPRINTF(out, "%" PRId32,  va_arg(va, int32_t)); break;
+    case NL__i64: NL_MY_FPRINTF(out, "%" PRId64,  va_arg(va, int64_t)); break;
+    case NL__float: NL_MY_FPRINTF(out, "%f",      va_arg(va, double)); break;
+    case NL__ptr: NL_MY_FPRINTF(out, "%p",        va_arg(va, void*)); break;
+    case NL__cstring: NL_MY_FPRINTF(out, "%s",    va_arg(va, char*)); break;
+    default: assert(0);
+    }
+
+    va_end(va);
+}
+
+inline static size_t nl__internal_sprint(char* buffer, size_t len, const char* restrict fmt, ...) {
+    va_list va;
+    va_start(va, fmt);
+
+    // TODO: maybe do something fancy like a custom print eventually...
+    size_t total = 0;
+    for (; *fmt; fmt++) {
+        size_t piece_length = 0;
+        switch ((NL__PrintType) *fmt) {
+        case NL__char: piece_length = NL_MY_SNPRINTF(buffer, len, "%c",(char) va_arg(va, int)); break;
+        case NL__u32: piece_length = NL_MY_SNPRINTF(buffer, len, "%" PRIu32,  va_arg(va, uint32_t)); break;
+        case NL__u64: piece_length = NL_MY_SNPRINTF(buffer, len, "%" PRIu64,  va_arg(va, uint64_t)); break;
+        case NL__i32: piece_length = NL_MY_SNPRINTF(buffer, len, "%" PRId32,  va_arg(va, int32_t)); break;
+        case NL__i64: piece_length = NL_MY_SNPRINTF(buffer, len, "%" PRId64,  va_arg(va, int64_t)); break;
+        case NL__float: piece_length = NL_MY_SNPRINTF(buffer, len, "%f",      va_arg(va, double)); break;
+        case NL__ptr: piece_length = NL_MY_SNPRINTF(buffer, len, "%p",        va_arg(va, void*)); break;
+        case NL__cstring: piece_length = NL_MY_SNPRINTF(buffer, len, "%s",    va_arg(va, char*)); break;
+        default: assert(0);
+        }
+
+        assert(len > piece_length && "Buffer overflow!");
+        len -= piece_length;
+
+        buffer += piece_length;
+        total += piece_length;
+    }
+
+    va_end(va);
+    return total;
+}
 
 #endif /* NL_PRINT */
+

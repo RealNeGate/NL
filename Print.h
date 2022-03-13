@@ -150,19 +150,19 @@
 
 #define nl_fprint(stream, ...) \
     nl__internal_print(stream, \
-    (char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+    (NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
     nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
 );
 
 #define nl_print(...) \
     nl__internal_print(stdout, \
-    (char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+    (NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
     nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
 );
 
 #define nl_sprint(buf, len, ...) \
     nl__internal_sprint(buf, len, \
-    (char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+    (NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
     nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
 );
 
@@ -179,12 +179,12 @@ typedef enum {
     NL__cstring
 } NL__PrintType;
 
-inline static void nl__internal_print(FILE* out, const char* restrict fmt, ...) {
+inline static void nl__internal_print(FILE* restrict out, const NL__PrintType* restrict fmt, ...) {
     va_list va;
     va_start(va, fmt);
 	
     // TODO: maybe do something fancy like a custom print eventually...
-    for (; *fmt; fmt++) switch ((NL__PrintType) *fmt) {
+    for (; *fmt; fmt++) switch (*fmt) {
 		case NL__char:    NL_MY_FPRINTF(out, "%c",   va_arg(va, int)); break;
 		case NL__d:       NL_MY_FPRINTF(out, "%d",   va_arg(va, int)); break;
 		case NL__ld:      NL_MY_FPRINTF(out, "%ld",  va_arg(va, long)); break;
@@ -201,7 +201,7 @@ inline static void nl__internal_print(FILE* out, const char* restrict fmt, ...) 
     va_end(va);
 }
 
-inline static size_t nl__internal_sprint(char* buffer, size_t len, const char* restrict fmt, ...) {
+inline static size_t nl__internal_sprint(char* restrict buffer, size_t len, const NL__PrintType* restrict fmt, ...) {
     va_list va;
     va_start(va, fmt);
 	
@@ -209,7 +209,7 @@ inline static size_t nl__internal_sprint(char* buffer, size_t len, const char* r
     size_t total = 0;
     for (; *fmt; fmt++) {
         size_t piece_length = 0;
-        switch ((NL__PrintType) *fmt) {
+        switch (*fmt) {
 			case NL__char:    piece_length = NL_MY_SNPRINTF(buffer, len, "%c",   va_arg(va, int)); break;
 			case NL__d:       piece_length = NL_MY_SNPRINTF(buffer, len, "%d",   va_arg(va, int)); break;
 			case NL__ld:      piece_length = NL_MY_SNPRINTF(buffer, len, "%ld",  va_arg(va, long)); break;

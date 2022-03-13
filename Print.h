@@ -123,22 +123,22 @@
 #define nl_print_f_iter_32(x, ...)  nl_print_f_iter_n(31,x) nl_print_f_iter_31(__VA_ARGS__)
 
 #define nl_print_f_iter_n(idx, x) \
-_Generic((x), \
-char*: NL__cstring, \
-char: NL__char, \
-short: NL__d, \
-int: NL__d, \
-long: NL__ld, \
-long long: NL__lld, \
-unsigned char: NL__d, \
-unsigned short: NL__d, \
-unsigned int: NL__u, \
-unsigned long: NL__lu, \
-unsigned long long: NL__llu, \
-float: NL__float, \
-double: NL__float, \
-default: NL__ptr \
-),
+    _Generic((x), \
+        char*: NL__cstring, \
+        char: NL__char, \
+        short: NL__d, \
+        int: NL__d, \
+        long: NL__ld, \
+        long long: NL__lld, \
+        unsigned char: NL__d, \
+        unsigned short: NL__d, \
+        unsigned int: NL__u, \
+        unsigned long: NL__lu, \
+        unsigned long long: NL__llu, \
+        float: NL__float, \
+        double: NL__float, \
+        default: NL__ptr \
+    ),
 
 #define nl_print_v_iter_n(idx, x) , x
 
@@ -149,21 +149,21 @@ default: NL__ptr \
 #define nl_print_rseq_n() 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
 #define nl_fprint(stream, ...) \
-nl__internal_print(stream, \
-(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
-nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
+    nl__internal_print(stream, \
+    (char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+    nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
 );
 
 #define nl_print(...) \
-nl__internal_print(stdout, \
-(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
-nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
+    nl__internal_print(stdout, \
+    (char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+    nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
 );
 
 #define nl_sprint(buf, len, ...) \
-nl__internal_sprint(buf, len, \
-(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
-nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
+    nl__internal_sprint(buf, len, \
+    (char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+    nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
 );
 
 typedef enum {

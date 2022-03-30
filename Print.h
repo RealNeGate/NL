@@ -148,25 +148,23 @@
 #define nl_print_arg_n(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, N, ...) N 
 #define nl_print_rseq_n() 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
-#define nl_fprint(stream, ...)                                                             \
-	nl__internal_print(stream,                                                             \
-	(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
-	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__)                   \
-);
+#define nl_fprint(stream, ...)                                                                   \
+	nl__internal_print(stream,                                                                   \
+	(NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) 0 } \
+	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__))                        \
 
-#define nl_print(...)                                                                      \
-	nl__internal_print(stdout,                                                             \
-	(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
-	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
-);
+#define nl_print(...)                                                                            \
+	nl__internal_print(stdout,                                                                   \
+	(NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) 0 } \
+	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__))                        \
 
-#define nl_sprint(buf, len, ...)                                                           \
-	nl__internal_sprint(buf, len,                                                          \
-	(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
-	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__)                   \
-);
+#define nl_sprint(buf, len, ...)                                                                 \
+	nl__internal_sprint(buf, len,                                                                \
+	(NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) 0 } \
+	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__))                        \
 
 typedef enum {
+	NL__none,
     NL__char,
     NL__d,
     NL__ld,
@@ -184,7 +182,7 @@ inline static void nl__internal_print(FILE* restrict out, const NL__PrintType* r
     va_start(va, fmt);
 	
     // TODO: maybe do something fancy like a custom print eventually...
-    for (; *fmt; fmt++) switch ((NL__PrintType) *fmt) {
+    for (; *fmt != NL__none; fmt++) switch ((NL__PrintType) *fmt) {
 		case NL__char:    NL_MY_FPRINTF(out, "%c",   va_arg(va, int)); break;
 		case NL__d:       NL_MY_FPRINTF(out, "%d",   va_arg(va, int)); break;
 		case NL__ld:      NL_MY_FPRINTF(out, "%ld",  va_arg(va, long)); break;
@@ -201,7 +199,7 @@ inline static void nl__internal_print(FILE* restrict out, const NL__PrintType* r
     va_end(va);
 }
 
-inline static ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const char* restrict fmt, ...) {
+inline static ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const NL__PrintType* restrict fmt, ...) {
 	// must be representable in ptrdiff_t
 	assert(len < PTRDIFF_MAX);
 	
@@ -210,7 +208,7 @@ inline static ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const char
 	
     // TODO: maybe do something fancy like a custom print eventually...
     size_t total = 0;
-    for (; *fmt; fmt++) {
+    for (; *fmt != NL__none; fmt++) {
         size_t piece_length = 0;
         switch ((NL__PrintType) *fmt) {
 			case NL__char:    piece_length = NL_MY_SNPRINTF(buffer, len, "%c",   va_arg(va, int)); break;
@@ -226,7 +224,7 @@ inline static ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const char
 			default: assert(0);
         }
 		
-        if (len < 0 || len > piece_length) return -1;
+        if (piece_length < 0 || piece_length >= len) return -1;
         len -= piece_length;
 		
         buffer += piece_length;

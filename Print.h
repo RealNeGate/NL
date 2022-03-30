@@ -173,13 +173,13 @@ typedef enum {
     NL__lld,
     NL__u,
     NL__lu,
-	NL__llu,
-	NL__ptr,
+    NL__llu,
+    NL__ptr,
     NL__float,
     NL__cstring
 } NL__PrintType;
 
-inline static void nl__internal_print(FILE* out, const char* restrict fmt, ...) {
+inline static void nl__internal_print(FILE* restrict out, const NL__PrintType* restrict fmt, ...) {
     va_list va;
     va_start(va, fmt);
 	

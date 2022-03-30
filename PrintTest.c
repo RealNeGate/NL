@@ -7,8 +7,8 @@ int main() {
    		"You know I'm balling ", "Usually like kobe", "\n"
    	);
 	
-	char buffer[16];
-	nl_sprint(buffer, 16, (void*)buffer);
+	char buffer[15];
+	nl_sprint(buffer, 15, (void*)buffer);
 	nl_print(buffer);
 	
 	return 0;

@@ -39,6 +39,19 @@
 #include <stdio.h>
 #endif // NL_NO_STDIO
 
+#ifndef NL_MY_FPRINTF
+#define NL_MY_FPRINTF(stream, fmt, ...) fprintf(stream, fmt, __VA_ARGS__) 
+#endif // NL_MY_FPRINTF
+
+#ifndef NL_MY_SNPRINTF
+#define NL_MY_SNPRINTF(buffer, len, fmt, ...) snprintf(buffer, len, fmt, __VA_ARGS__) 
+#endif // NL_MY_SNPRINTF
+
+#include <stdint.h>
+#include <inttypes.h>
+#include <stdarg.h>
+#include <assert.h>
+
 #define nl_concat(arg1, arg2)   nl_concat1(arg1, arg2)
 #define nl_concat1(arg1, arg2)  nl_concat2(arg1, arg2)
 #define nl_concat2(arg1, arg2)  arg1##arg2
@@ -109,7 +122,24 @@
 #define nl_print_f_iter_31(x, ...)  nl_print_f_iter_n(30,x) nl_print_f_iter_30(__VA_ARGS__)
 #define nl_print_f_iter_32(x, ...)  nl_print_f_iter_n(31,x) nl_print_f_iter_31(__VA_ARGS__)
 
-#define nl_print_f_iter_n(idx, x) '%', _Generic((x), char: 'c', char*: 's', double: 'f', short: 'd', int: 'd', default: 'p' ), 
+#define nl_print_f_iter_n(idx, x) \
+	_Generic((x),                 \
+	char*: NL__cstring,           \
+	char: NL__char,               \
+	short: NL__d,                 \
+	int: NL__d,                   \
+	long: NL__ld,                 \
+	long long: NL__lld,           \
+	unsigned char: NL__d,         \
+	unsigned short: NL__d,        \
+	unsigned int: NL__u,          \
+	unsigned long: NL__lu,        \
+	unsigned long long: NL__llu,  \
+	float: NL__float,             \
+	double: NL__float,            \
+	default: NL__ptr              \
+),
+
 #define nl_print_v_iter_n(idx, x) , x
 
 #define nl_print_narg(...) nl_print_narg_(__VA_ARGS__, nl_print_rseq_n())
@@ -118,22 +148,93 @@
 #define nl_print_arg_n(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, N, ...) N 
 #define nl_print_rseq_n() 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
-#define nl_fprint(stream, ...) \
-    fprintf(stream, \
-        nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
-        nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
-    );
+#define nl_fprint(stream, ...)                                                             \
+	nl__internal_print(stream,                                                             \
+	(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__)                   \
+);
 
-#define nl_print(...) \
-    printf( \
-        &(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
-        nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
-    );
+#define nl_print(...)                                                                      \
+	nl__internal_print(stdout,                                                             \
+	(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
+);
 
-#define nl_sprint(buf, ...) \
-    sprintf(buf, \
-        &(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
-        nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) \
-    );
+#define nl_sprint(buf, len, ...)                                                           \
+	nl__internal_sprint(buf, len,                                                          \
+	(char[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) '\0' } \
+	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__)                   \
+);
+
+typedef enum {
+    NL__char,
+    NL__d,
+    NL__ld,
+    NL__lld,
+    NL__u,
+    NL__lu,
+	NL__llu,
+	NL__ptr,
+    NL__float,
+    NL__cstring
+} NL__PrintType;
+
+inline static void nl__internal_print(FILE* out, const char* restrict fmt, ...) {
+    va_list va;
+    va_start(va, fmt);
+	
+    // TODO: maybe do something fancy like a custom print eventually...
+    for (; *fmt; fmt++) switch ((NL__PrintType) *fmt) {
+		case NL__char:    NL_MY_FPRINTF(out, "%c",   va_arg(va, int)); break;
+		case NL__d:       NL_MY_FPRINTF(out, "%d",   va_arg(va, int)); break;
+		case NL__ld:      NL_MY_FPRINTF(out, "%ld",  va_arg(va, long)); break;
+		case NL__lld:     NL_MY_FPRINTF(out, "%lld", va_arg(va, long long)); break;
+		case NL__u:       NL_MY_FPRINTF(out, "%u",   va_arg(va, unsigned int)); break;
+		case NL__lu:      NL_MY_FPRINTF(out, "%lu",  va_arg(va, unsigned long)); break;
+		case NL__llu:     NL_MY_FPRINTF(out, "%llu", va_arg(va, unsigned long long)); break;
+		case NL__ptr:     NL_MY_FPRINTF(out, "%p",   va_arg(va, void*)); break;
+		case NL__float:   NL_MY_FPRINTF(out, "%f",   va_arg(va, double)); break;
+		case NL__cstring: NL_MY_FPRINTF(out, "%s",   va_arg(va, char*)); break;
+		default: assert(0);
+    }
+	
+    va_end(va);
+}
+
+inline static ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const char* restrict fmt, ...) {
+	// must be representable in ptrdiff_t
+	assert(len < PTRDIFF_MAX);
+	
+    va_list va;
+    va_start(va, fmt);
+	
+    // TODO: maybe do something fancy like a custom print eventually...
+    size_t total = 0;
+    for (; *fmt; fmt++) {
+        size_t piece_length = 0;
+        switch ((NL__PrintType) *fmt) {
+			case NL__char:    piece_length = NL_MY_SNPRINTF(buffer, len, "%c",   va_arg(va, int)); break;
+			case NL__d:       piece_length = NL_MY_SNPRINTF(buffer, len, "%d",   va_arg(va, int)); break;
+			case NL__ld:      piece_length = NL_MY_SNPRINTF(buffer, len, "%ld",  va_arg(va, long)); break;
+			case NL__lld:     piece_length = NL_MY_SNPRINTF(buffer, len, "%lld", va_arg(va, long long)); break;
+			case NL__u:       piece_length = NL_MY_SNPRINTF(buffer, len, "%u",   va_arg(va, unsigned int)); break;
+			case NL__lu:      piece_length = NL_MY_SNPRINTF(buffer, len, "%lu",  va_arg(va, unsigned long)); break;
+			case NL__llu:     piece_length = NL_MY_SNPRINTF(buffer, len, "%llu", va_arg(va, unsigned long long)); break;
+			case NL__ptr:     piece_length = NL_MY_SNPRINTF(buffer, len, "%p",   va_arg(va, void*)); break;
+			case NL__float:   piece_length = NL_MY_SNPRINTF(buffer, len, "%f",   va_arg(va, double)); break;
+			case NL__cstring: piece_length = NL_MY_SNPRINTF(buffer, len, "%s",   va_arg(va, char*)); break;
+			default: assert(0);
+        }
+		
+        if (len < 0 || len > piece_length) return -1;
+        len -= piece_length;
+		
+        buffer += piece_length;
+        total += piece_length;
+    }
+	
+    va_end(va);
+    return total;
+}
 
 #endif /* NL_PRINT */

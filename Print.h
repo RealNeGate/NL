@@ -173,8 +173,8 @@ typedef enum {
     NL__lld,
     NL__u,
     NL__lu,
-	NL__llu,
-	NL__ptr,
+    NL__llu,
+    NL__ptr,
     NL__float,
     NL__cstring
 } NL__PrintType;

@@ -47,8 +47,9 @@
 #define NL_MY_SNPRINTF(buffer, len, fmt, ...) snprintf(buffer, len, fmt, __VA_ARGS__) 
 #endif // NL_MY_SNPRINTF
 
+#include <stdbool.h>
 #include <stdint.h>
-#include <inttypes.h>
+#include <stddef.h>
 #include <stdarg.h>
 #include <assert.h>
 
@@ -177,7 +178,7 @@ typedef enum {
     NL__cstring
 } NL__PrintType;
 
-inline static void nl__internal_print(FILE* restrict out, const NL__PrintType* restrict fmt, ...) {
+inline static bool nl__internal_print(FILE* restrict out, const NL__PrintType* restrict fmt, ...) {
     va_list va;
     va_start(va, fmt);
 	
@@ -193,15 +194,16 @@ inline static void nl__internal_print(FILE* restrict out, const NL__PrintType* r
 		case NL__ptr:     NL_MY_FPRINTF(out, "%p",   va_arg(va, void*)); break;
 		case NL__float:   NL_MY_FPRINTF(out, "%f",   va_arg(va, double)); break;
 		case NL__cstring: NL_MY_FPRINTF(out, "%s",   va_arg(va, char*)); break;
-		default: assert(0);
+		default: return false;
     }
 	
     va_end(va);
+	return true;
 }
 
 inline static ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const NL__PrintType* restrict fmt, ...) {
 	// must be representable in ptrdiff_t
-	assert(len < PTRDIFF_MAX);
+	if (len >= PTRDIFF_MAX) return -1;
 	
     va_list va;
     va_start(va, fmt);
@@ -221,7 +223,7 @@ inline static ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const NL__
 			case NL__ptr:     piece_length = NL_MY_SNPRINTF(buffer, len, "%p",   va_arg(va, void*)); break;
 			case NL__float:   piece_length = NL_MY_SNPRINTF(buffer, len, "%f",   va_arg(va, double)); break;
 			case NL__cstring: piece_length = NL_MY_SNPRINTF(buffer, len, "%s",   va_arg(va, char*)); break;
-			default: assert(0);
+			default: return -1;
         }
 		
         if (piece_length < 0 || piece_length >= len) return -1;

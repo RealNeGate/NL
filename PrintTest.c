@@ -7,8 +7,8 @@ int main() {
    		"You know I'm balling ", "Usually like kobe", "\n"
    	);
 	
-	char buffer[17];
-	if (nl_sprint(buffer, 17, (void*)buffer) >= 0) {
+	char buffer[20];
+	if (nl_sprint(buffer, 20, (void*)buffer) >= 0) {
 		nl_print(buffer);
 	} else {
 		nl_print("Buffer overflow!\n");

@@ -22,16 +22,9 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 // EXAMPLE
-//	  
-//	int main() {
-//    	nl_print(
-//    		"Hello, ", "Bob", "!\n",
-//     		"Here's an integer: ", 6 * 4, ", Now a float: ", 5.0, ".\n",
-//     		"You know I'm balling ", "Usually like kobe", "\n"
-//     	);
-//     
-//     	return 0;
-//	}
+//    #define NL_PRINT_IMPL
+//    #include "Print.h"
+//	
 #ifndef NL_PRINT
 #define NL_PRINT
 
@@ -52,6 +45,40 @@
 #include <stddef.h>
 #include <stdarg.h>
 #include <assert.h>
+
+typedef struct {
+	intmax_t val;
+	int width;
+	int base;
+	bool zeroes;
+} NL_IntFmt;
+
+typedef struct {
+	uintmax_t val;
+	int width;
+	int base;
+	bool zeroes;
+} NL_UIntFmt;
+
+typedef struct {
+	double val;
+	int precision;
+} NL_FloatFmt;
+
+// example usage: nl_print("The number is ", nl_intfmt(counter, precision, base))
+inline static NL_IntFmt nl_intfmt(intmax_t val, int width, int base, bool zeroes) {
+	return (NL_IntFmt){ val, width, base, zeroes };
+}
+
+inline static NL_UIntFmt nl_uintfmt(uintmax_t val, int width, int base, bool zeroes) {
+	return (NL_UIntFmt){ val, width, base, zeroes };
+}
+
+inline static NL_FloatFmt nl_fltfmt(double val, int precision) {
+	return (NL_FloatFmt){ val, precision };
+}
+
+#define nl_floatfmt(val_, ...) (NL_FloatFmt){ (val_), __VA_ARGS__ }
 
 #define nl_concat(arg1, arg2)   nl_concat1(arg1, arg2)
 #define nl_concat1(arg1, arg2)  nl_concat2(arg1, arg2)
@@ -123,22 +150,25 @@
 #define nl_print_f_iter_31(x, ...)  nl_print_f_iter_n(30,x) nl_print_f_iter_30(__VA_ARGS__)
 #define nl_print_f_iter_32(x, ...)  nl_print_f_iter_n(31,x) nl_print_f_iter_31(__VA_ARGS__)
 
-#define nl_print_f_iter_n(idx, x) \
-	_Generic((x),                 \
-	char*: NL__cstring,           \
-	char: NL__char,               \
-	short: NL__d,                 \
-	int: NL__d,                   \
-	long: NL__ld,                 \
-	long long: NL__lld,           \
-	unsigned char: NL__d,         \
-	unsigned short: NL__d,        \
-	unsigned int: NL__u,          \
-	unsigned long: NL__lu,        \
-	unsigned long long: NL__llu,  \
-	float: NL__float,             \
-	double: NL__float,            \
-	default: NL__ptr              \
+#define nl_print_f_iter_n(idx, x)          \
+_Generic((x),                          \
+char*: NL__cstring,           \
+char: NL__char,               \
+short: NL__d,                 \
+int: NL__d,                   \
+long: NL__ld,                 \
+long long: NL__lld,           \
+unsigned char: NL__d,         \
+unsigned short: NL__d,        \
+unsigned int: NL__u,          \
+unsigned long: NL__lu,        \
+unsigned long long: NL__llu,  \
+float: NL__float,             \
+double: NL__float,            \
+NL_IntFmt: NL__intfmt,        \
+NL_UIntFmt: NL__uintfmt,      \
+NL_FloatFmt: NL__floatfmt,    \
+default: NL__ptr              \
 ),
 
 #define nl_print_v_iter_n(idx, x) , x
@@ -149,20 +179,20 @@
 #define nl_print_arg_n(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, N, ...) N 
 #define nl_print_rseq_n() 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 
-#define nl_fprint(stream, ...)                                                                   \
-	nl__internal_print(stream,                                                                   \
-	(NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) 0 } \
-	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__))                        \
+#define nl_fprint(stream, ...)                                                                                      \
+nl__internal_print(stream,                                                                                      \
+(NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) 0 } \
+nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__))                        \
 
-#define nl_print(...)                                                                            \
-	nl__internal_print(stdout,                                                                   \
-	(NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) 0 } \
-	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__))                        \
+#define nl_print(...)                                                                                               \
+nl__internal_print(stdout,                                                                                      \
+(NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) 0 } \
+nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__))                        \
 
-#define nl_sprint(buf, len, ...)                                                                 \
-	nl__internal_sprint(buf, len,                                                                \
-	(NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) 0 } \
-	nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__))                        \
+#define nl_sprint(buf, len, ...)                                                                                     \
+nl__internal_sprint(buf, len,                                                                                    \
+(NL__PrintType[]) { nl_concat(nl_print_f_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__) 0 } \
+nl_concat(nl_print_v_iter_, nl_print_narg(__VA_ARGS__))(__VA_ARGS__))                        \
 
 typedef enum {
 	NL__none,
@@ -175,10 +205,46 @@ typedef enum {
     NL__llu,
     NL__ptr,
     NL__float,
+	NL__intfmt,
+	NL__uintfmt,
+	NL__floatfmt,
     NL__cstring
 } NL__PrintType;
 
-inline static bool nl__internal_print(FILE* restrict out, const NL__PrintType* restrict fmt, ...) {
+// Private functions, don't access these directly use the macros nl_print, nl_fprint, nl_sprint
+bool nl__internal_print(FILE* restrict out, const NL__PrintType* restrict fmt, ...);
+ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const NL__PrintType* restrict fmt, ...);
+#endif /* NL_PRINT */
+
+#ifdef NL_PRINT_IMPL
+
+// It doesn't null terminate btw
+static int my_itoa(uint64_t i, int base, char buf[64]) {
+    uint8_t tbuf[64];
+	
+    if (i == 0 || base < 2 || base > 16) {
+        buf[0] = '0';
+        return 1;
+    }
+	
+    int pos = 0;
+	
+	while (i != 0) {
+		tbuf[pos++] = "0123456789ABCDEF"[i % base];
+		i /= base;
+	}
+	
+    int top = pos--, o_pos = 0;
+    for (; o_pos < top; pos--, o_pos++) {
+        buf[o_pos] = tbuf[pos];
+    }
+	
+    return o_pos;
+}
+
+bool nl__internal_print(FILE* restrict out, const NL__PrintType* restrict fmt, ...) {
+	char tmp[64];
+	
     va_list va;
     va_start(va, fmt);
 	
@@ -193,6 +259,45 @@ inline static bool nl__internal_print(FILE* restrict out, const NL__PrintType* r
 		case NL__llu:     NL_MY_FPRINTF(out, "%llu", va_arg(va, unsigned long long)); break;
 		case NL__ptr:     NL_MY_FPRINTF(out, "%p",   va_arg(va, void*)); break;
 		case NL__float:   NL_MY_FPRINTF(out, "%f",   va_arg(va, double)); break;
+		case NL__intfmt:  {
+			NL_IntFmt arg = va_arg(va, NL_IntFmt);
+			
+			char* p = tmp;
+			uint64_t absolute_val;
+			if (arg.val < 0) {
+				*p++ = '-';
+				absolute_val = -arg.val;
+			} else {
+				absolute_val = arg.val;
+			}
+			int l = my_itoa(absolute_val, arg.base, tmp);
+			
+			if (l < arg.width) {
+				if (arg.zeroes) {
+					NL_MY_FPRINTF(out, "%0*d", (int)(arg.width - l), 0);
+				} else {
+					NL_MY_FPRINTF(out, "%*s", (int)(arg.width - l), "");
+				}
+			}
+			NL_MY_FPRINTF(out, "%.*s", (int)l, tmp);
+			break;
+		}
+		case NL__uintfmt:  {
+			NL_IntFmt arg = va_arg(va, NL_IntFmt);
+			
+			char* p = tmp;
+			int l = my_itoa(arg.val, arg.base, tmp);
+			
+			if (l < arg.width) {
+				if (arg.zeroes) {
+					NL_MY_FPRINTF(out, "%0*d", (int)(arg.width - l), 0);
+				} else {
+					NL_MY_FPRINTF(out, "%*s", (int)(arg.width - l), "");
+				}
+			}
+			NL_MY_FPRINTF(out, "%.*s", (int)l, tmp);
+			break;
+		}
 		case NL__cstring: NL_MY_FPRINTF(out, "%s",   va_arg(va, char*)); break;
 		default: return false;
     }
@@ -201,7 +306,7 @@ inline static bool nl__internal_print(FILE* restrict out, const NL__PrintType* r
 	return true;
 }
 
-inline static ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const NL__PrintType* restrict fmt, ...) {
+ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const NL__PrintType* restrict fmt, ...) {
 	// must be representable in ptrdiff_t
 	if (len >= PTRDIFF_MAX) return -1;
 	
@@ -237,4 +342,4 @@ inline static ptrdiff_t nl__internal_sprint(char* buffer, size_t len, const NL__
     return total;
 }
 
-#endif /* NL_PRINT */
+#endif /* NL_PRINT_IMPL */
